@@ -2,6 +2,8 @@
 
 It might be late, but I couldn't find an esc/pos utility to use with c++, so I coded a very minimalistic one.
 
+As a very, very important note, **this is a work in progress**.
+
 ### How to compile
 
 Simply create a build folder, move into it and execute cmake
@@ -11,6 +13,8 @@ Simply create a build folder, move into it and execute cmake
     cmake ../
 
 You will need [libusb](http://libusb.info/), but that is the only dependency (at least in linux, no proprietary drivers are required when testing with a TM-T20II).
+
+If you are using g++, then it is enough to type `make` to build the library.
 
 ### Example usage
 
