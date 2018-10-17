@@ -19,7 +19,12 @@ extern std::string UNDERLINE_2_DOT;
 // Equivalent to ESC
 extern std::string BOLD_ON;
 extern std::string BOLD_OFF;
-
+// Equivalent to ESC *
+extern std::string BITMAP;
+// Make line jump 0
+extern std::string NO_LINE;
+// Reset line Size
+extern std::string RESET_LINE;
 }
 
 #endif //INCLUDE_ESCPOS_COMMANDS_H

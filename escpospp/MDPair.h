@@ -5,6 +5,11 @@
 #include <map>
 #include <utility>
 
+/*
+Class to pass from markdown to escpos commands
+
+Author: Carlos Malanche, October 2018.
+*/
 class MDPair: public std::pair<std::string, std::string>{
 public:
     static MDPair getMatching(std::string toMatch);

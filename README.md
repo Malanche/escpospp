@@ -45,3 +45,15 @@ You can also send raw data to the printer by calling the `raw` method:
     printer.raw("Some sample text\n" + EscPos::CUT);
 
 The provided `EscPos` namespace contains some useful instructions to be sent through the `raw` method to the printer.
+
+### Printing images
+
+This library uses the `ESC *` protocol to send pictures to the printer. At the moment, the functionality is limited. You need to send te picture as a `std::vector` of pixel rows, which are `std::vector<bool>` objects (something like an stl matrix). An example of a mxn picture would be the next one.
+
+    std::vector< std::vector<bool> > myImage(m, std::vector<bool>(n, 0));
+
+By default, the printing resolution is set to high, but you can change this setting with the printer's `setResolution` method.
+
+### Getting the printer to work on windows
+
+Windows will install a usbprinter driver as soon as you plug in the thermal printer for the first time, but this driver is not compatible with libusb. To fix this issue, you can use a tool like [Zadig](https://zadig.akeo.ie/) to replace this driver with WinUSB. Just take note that after this, your computer won't recognize the printer as an actual priner ;)

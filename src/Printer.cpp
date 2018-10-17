@@ -4,12 +4,16 @@
 #include <stack>
 #include <set>
 
+// To sleep a bit :)
+#include <chrono>
+#include <thread>
+
 #include "escpospp/MDPair.h"
 #include "escpospp/EscPosCommands.h"
 
 Printer * Printer::instance = nullptr;
 
-Printer::Printer(): context(nullptr), printer(nullptr){
+Printer::Printer(std::pair<int, int> ids): context(nullptr), printer(nullptr), ir(Printer::imageResolution::HIGH){
     int r; //for return values
     ssize_t cnt; //holding number of devices in list
     r = libusb_init(&context); //initialize a library session
@@ -17,9 +21,29 @@ Printer::Printer(): context(nullptr), printer(nullptr){
         std::cout << "Init Error " << r << std::endl; //there was an error
         throw -1;
     }
-    libusb_set_debug(context, 3); //set verbosity level to 3, as suggested in the documentation
+    //libusb_set_debug(context, 3); //set verbosity level to 3, as suggested in the documentation
+    libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, 3);
 
-    printer = libusb_open_device_with_vid_pid(context, 0x04b8, 0x0e15); //these are vendorID and productID I found for my usb device
+    libusb_device **list = NULL;
+    int count = libusb_get_device_list(context, &list);
+    
+    for (size_t idx = 0; idx < count; ++idx) {
+        libusb_device *device = list[idx];
+        libusb_device_descriptor desc = {0};
+
+        int rc = libusb_get_device_descriptor(device, &desc);
+        if(desc.idVendor == ids.first && desc.idProduct == ids.second){
+            libusb_open(device, &printer);
+            break;
+        }
+        
+        // At the moment not necessary to print debug information
+        //printf("Vendor:Device = %04x:%04x\n", desc.idVendor, desc.idProduct);
+    }
+    libusb_free_device_list(list, count);
+    
+    // A bit riskier method to open the device
+    //printer = libusb_open_device_with_vid_pid(context, ids.first, ids.second); //these are vendorID and productID I found for my usb device
     if(printer == NULL){
         std::cout << "Cannot open device" << std::endl;
         throw -1;
@@ -53,7 +77,7 @@ Printer::~Printer(){
 
 void Printer::initializePrinter(std::pair<int, int> ids){
     if(instance == nullptr){
-        instance = new Printer();
+        instance = new Printer(ids);
     }
 }
 
@@ -137,6 +161,56 @@ void Printer::raw(std::string text){
 
 void Printer::cut(){
     raw(EscPos::CUT);
+}
+
+void Printer::image(std::vector< std::vector<bool> > &bitmap){
+    // Quickly check the integrity of the "bitmap"
+    int height = bitmap.size();
+    int width = bitmap[0].size();
+    for(int i = 1; i < height; i++){
+        if(width != bitmap[i].size()){
+            std::cout << "Error: the bitmap is not squared" << std::endl;
+            throw -1;
+        }
+    }
+    // First of all, set line height:
+    raw(EscPos::NO_LINE);
+    unsigned char nL = (unsigned char) (width%256); // nL
+    unsigned char nH = (unsigned char) (width/256); // nH
+    unsigned char m = (ir == imageResolution::HIGH) ? (unsigned char) 33 : (unsigned char) 1;
+    int rowCount = 0;
+    int rowHeight = (ir == imageResolution::HIGH) ? 24 : 8;
+    std::string total;
+    while(rowCount < height){
+        std::string content = EscPos::BITMAP;
+        // Now we configure the resolution
+        content += m;
+        // Notice that I can't do nL + nH because then it adds up nL and nH as integers
+        content += nL;
+        content += nH;
+        for(int j = 0; j < width; j++){
+            int bit = 0;
+            for(int k = 0; k < rowHeight; k++){
+                // If we already got to the last element, then we just skip it all
+                if(rowCount + k < height){
+                    // Else, we shift this bit with the according position.
+                    bit += ((int) bitmap[rowCount+k][j]) << (8-k%8);
+                }
+                // Finally, we check if it is time to push one byte to the content stream
+                if(k%8 == 7){
+                    content += (unsigned char) bit;
+                    bit = 0;
+                }
+            }
+        }
+        rowCount+=rowHeight;
+        content+='\n';
+        //raw(content);
+        //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        total+=content;
+    }
+    raw(total);
+    raw(EscPos::RESET_LINE);
 }
 
 void Printer::reset(){
